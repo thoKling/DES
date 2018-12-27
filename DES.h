@@ -1,7 +1,6 @@
 #ifndef des_h
 #define des_h
 
-#include <stdio.h>
 #include <stdint.h>
 
 typedef union {
@@ -10,8 +9,7 @@ typedef union {
 }
 bloc32;
 
-typedef
-union
+typedef union
 {
   uint64_t i64;
   uint32_t i32[2];
@@ -20,11 +18,9 @@ union
 }
 bloc64;
 
-//bloc64 b;
-//b.i64 = 1;
-
 int f(int i);
-bloc64 chiffrement(bloc64 bloc_init);
-bloc64 dechiffrement(bloc64 bloc_init);
+void chiffrement(bloc64* bloc_init);
+void dechiffrement(bloc64* bloc_init);
+void permutation(bloc64* bloc_init, int perm[64]);
 
-#endif /* coloriage_h */
+#endif /* DES_h */
