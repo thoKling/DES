@@ -37,9 +37,7 @@ int f(int i) {
 // Version 1
 void chiffrement(bloc64* bloc_init) {
   // Permutation initiale
-  permutation(bloc_init, PI);
-
-  printf("\nInit : %"PRIx64"\n", bloc_init->i64);
+  permutation(64, bloc_init, PI);
   // 16 tours de chiffrements  
   uint32_t temp;
   for(int i = 0; i < 16; i++) {
@@ -55,13 +53,13 @@ void chiffrement(bloc64* bloc_init) {
   bloc_init->i32[Li] = bloc_init->i32[Ri];
   bloc_init->i32[Ri] = temp;
   // Permutation inverse
-  permutation(bloc_init, PI_INV);
+  permutation(64, bloc_init, PI_INV);
 }
 
 // Version 1
 void dechiffrement(bloc64* bloc_init) {
   // Permutation initiale
-  permutation(bloc_init, PI);
+  permutation(64, bloc_init, PI);
 
   uint32_t temp;
   // Echange de Li et Ri
@@ -78,14 +76,14 @@ void dechiffrement(bloc64* bloc_init) {
     bloc_init->i32[Li] = temp ^ f(i);
   }
   // Permutation inverse
-  permutation(bloc_init, PI_INV);
+  permutation(64, bloc_init, PI_INV);
 }
 
 // Permutation sur un bloc de 64bits
-void permutation(bloc64* bloc_init, int perm[64]) {
+void permutation(int taille, bloc64* bloc_init, int* perm) {
   bloc64 res;
   res.i64 = 0u;
-  for(int i = 0; i < 64; i++) {
+  for(int i = 0; i < taille; i++) {
     // On cast car getbitvalue() renvoie un uint_8
     res.i64 |= (long long unsigned int)(getbitvalue(bloc_init->i64, perm[i]-1)) << i;
   }

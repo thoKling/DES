@@ -21,6 +21,6 @@ bloc64;
 int f(int i);
 void chiffrement(bloc64* bloc_init);
 void dechiffrement(bloc64* bloc_init);
-void permutation(bloc64* bloc_init, int perm[64]);
+void permutation(int taille, bloc64* bloc_init, int perm[64]);
 
 #endif /* DES_h */
