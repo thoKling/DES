@@ -5,7 +5,7 @@
 void printbits_32(uint32_t v)
 {
 	bloc32* b = (bloc32*)(&v);
-	for (uint8_t i = 0; i < 4; ++i)
+	for (int i = 3; i > -1; --i)
 	{
 		printbits_8(b->i8[i]);
 		printf(" ");
@@ -14,9 +14,9 @@ void printbits_32(uint32_t v)
 void printbits_64(uint64_t v)
 {
 	bloc64* b = (bloc64*)(&v);
-	for (uint8_t i = 0; i < 2; ++i)
+	for (int i = 7; i > -1; --i)
 	{
-		printbits_32(b->i32[i]);
+		printbits_8(b->i8[i]);
 		printf(" ");
 	}
 }
@@ -27,7 +27,13 @@ void setbitvalue(uint8_t* v, uint8_t idx, uint8_t value)
 	else
 		*v = *v | (1 << idx);
 }
-
+void testSet(uint64_t* v, uint8_t idx, uint8_t value)
+{
+	if (value == 0)
+		*v = *v & ~(1 << idx);
+	else
+		*v = *v | (1 << idx);
+}
 uint8_t getbitvalue(uint64_t v, uint8_t idx)
 {
 	return (v >> idx) & 1;
