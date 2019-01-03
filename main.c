@@ -1,68 +1,216 @@
-#include "DES.h"
-#include <time.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+
+#include <time.h>
 #include <inttypes.h>
+#include <string.h>
+
 #include "MyUtils.h"
+#include "DES.h"
+#include "structure.h"
 
-int main(){
+int main(int argc, char** argv){
+	int structureOk = checkStructure();
+	if(structureOk){
+		printf("Structure du programme fonctionnelle\n");
+	}
+	else{
+		printf("Probleme lors de la verification de la structure du programme, fermeture\n"); 
+		exit(0);
+	}
+	if(argc <= 1){
+		printf("Pas d'arguments donnes, utilisation : des fichier (cle) mode\n");
+		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres\n");
+	       	printf("OPTIONNEL : Avec cle : la cle de cryptage dans le dossier cles\n");
+		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+		printf("Fermeture du programme\n");
+	}
+	else if (argc < 3){
+		printf("Pas assez d'arguments donnes, utilisation : des fichier (cle) mode\n");
+		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres, nom de la cle dans le dossier chiffres\n");
+	       	printf("OPTIONNEL : Avec cle : la cle de cryptage\n");
+		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+		printf("Fermeture du programme\n");
+	}
+	else if(argc == 3){
+		printf("nombre d'arguments correct, cle non specifie\n");
+		int mode = checkMode(argv[2]);
+		if(mode == 1 || mode == 2){
+			int fileState = checkFile(argv[1], mode);
+			if(fileState == 1){
+				int keyFileState = checkKeyFile(argv[1]);
+				if(keyFileState == 1){
+					char* stringKey = malloc(sizeof(char)*8+1);
+					int keyReadState = readKeyFromFile(argv[1], stringKey);
+					if(keyReadState == 1){
+						printf("Cle: %s lue depuis le fichier\n", stringKey);
+						int keyState = checkKey(stringKey);
+						if(keyState == 1){
+							bloc64 key;
+								memcpy(&key.i64, &stringKey[0], 8);
+							if(mode == 1){ //Chiffrement
+								char* repository = "./clairs/";
+								int fileIsAscii = checkFileAscii(argv[1], repository);
+								if(fileIsAscii == 1){
+									printf("Le fichier %s%s est conforme au format ascii\n", repository, argv[1]);
+									int isCrypted = crypt(argv[1], &key);
+									if(isCrypted == 1){
+										printf("Le fichier a ete crypte avec succes!\n");
 
-    // Truc utile pour tester le temps d'exec
-    //clock_t begin = clock();
-    //Fonction a tester le temps
-    //clock_t stop = clock();
-    //double time_spent =(double)(stop-begin)/CLOCKS_PER_SEC*1000;
-    //printf("Temps d'execution : %f\n", time_spent);
+									}
+									else if(isCrypted == -2){
+										printf("Erreur lors de la lecture du fichier : %s%s\n", repository, argv[1]);
+									}
+									else if (isCrypted == -1){
+										printf("Erreur lors du cryptage\n");
+									}
+									else if (isCrypted == -1){
+										printf("Erreur lors de la creation de ./chiffres/%s\n", argv[1]);
+									}
+								}
+								else if(fileIsAscii == -2){
+									printf("Erreur lors de la lecture de %s%s\n", repository, argv[1]);
+								}
+								else if(fileIsAscii == -1){
+									printf("Le fichier: %s  contient des caracteres non ascii\n", argv[1]);
+								}
+							}
+							else if(mode == 2){ //Dechiffrement
+								int isDecrypted = decrypt(argv[1], &key);
+								if(isDecrypted == 1){
+									printf("Le fichier a ete decrypte avec succes!\n");
 
-    FILE * pFile;
-    long lSize;
-    char * buffer;
-    size_t result;
+								}
+								else if(isDecrypted == -2){
+									printf("Erreur lors de la lecture du fichier : ./chiffres/%s\n", argv[1]);
+								}
+								else if (isDecrypted == -1){
+									printf("Erreur lors du decryptage\n");
+								}
+								else if (isDecrypted == -1){
+									printf("Erreur lors de la creation de ./clairs/%s\n", argv[1]);
+								}
+							}
 
-    pFile = fopen ( "test.txt" , "rb" );
-    if (pFile==NULL) {fputs ("File error",stderr); exit (1);}
+						}
+						else if(keyState == -1){
+							printf("Taille de la cle invalide\n");
+						}
+						else if(keyState == -2){
+							printf("Caracteres non ascii detectes dans la cle\n");
+						}
+					}
+					else{
+						printf("Erreur lors de la lecture de la cle depuis le fichier\n");
+					}
+				}
+				else{
+					printf("Probleme lors de l'acces au fichier contenant la cle\n");
+				}
+			}
+			else{
+				printf("Probleme lors de la verification du fichier\n");	
+			}	
+		}
+		else{
+			printf("Mode d'utilisation du programme incorrecte\n");
+			printf("Mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+		}
+	}
+	else if(argc == 4){
+		printf("nombre d'arguments correct, cle specifie\n");
+		int mode = checkMode(argv[3]);
+		if(mode == 1 || mode == 2){
+			int fileState = checkFile(argv[1], mode);
+			if(fileState == 1){
+				int keyState = checkKey(argv[2]);
+				if(keyState == 1){
+					printf("Cle valide\n");
+					char* stringKey = NULL;	
+					stringKey = malloc(8+1);
+					strcpy(stringKey, argv[2]);
+					printf("%s\n", stringKey);
+					bloc64 key;
+				       	memcpy(&key.i64, &stringKey[0], 8);
+					if(mode == 1){ //Chiffrement
+						char* repository = "./clairs/";
+						int fileIsAscii = checkFileAscii(argv[1], repository);
+						if(fileIsAscii == 1){
+							printf("Le fichier %s%s est conforme au format ascii\n", repository, argv[1]);
+							int isCrypted = crypt(argv[1], &key);
+							if(isCrypted == 1){
+								printf("Le fichier a ete crypte avec succes!\n");
+								int keySaved = saveKey(argv[1], stringKey);
+								if(keySaved == 1){
+									printf("Cle: '%s' sauvegardee sous ./cles/%s\n", stringKey, argv[1]);
+								}
+								else{
+									printf("Erreur lors de la sauvegarde de la cle : '%s'\n", stringKey);
+								}
+							}
+							else if(isCrypted == -2){
+								printf("Erreur lors de la lecture du fichier : %s%s\n", repository, argv[1]);
+							}
+							else if (isCrypted == -1){
+								printf("Erreur lors du cryptage\n");
+							}
+							else if (isCrypted == -1){
+								printf("Erreur lors de la creation de ./chiffres/%s\n", argv[1]);
+							}
+						}
+						else if(fileIsAscii == -2){
+							printf("Erreur lors de la lecture de %s%s\n", repository, argv[1]);
+						}
+						else if(fileIsAscii == -1){
+							printf("Le fichier: %s  contient des caracteres non ascii\n", argv[1]);
+						}
+					}
+					else if(mode == 2){ //Dechiffrement
+						int isDecrypted = decrypt(argv[1], &key);
+						if(isDecrypted == 1){
+							printf("Le fichier a ete decrypte avec succes!\n");
+							int keySaved = saveKey(argv[1], stringKey);
+							if(keySaved == 1){
+								printf("Cle: '%s' sauvegardee sous ./cles/%s\n", stringKey, argv[1]);
+							}
+							else{
+								printf("Erreur lors de la sauvegarde de la cle : '%s'\n", stringKey);
+							}
+						}
+						else if(isDecrypted == -2){
+							printf("Erreur lors de la lecture du fichier : ./chiffres/%s\n", argv[1]);
+						}
+						else if (isDecrypted == -1){
+							printf("Erreur lors du decryptage\n");
+						}
+						else if (isDecrypted == -1){
+							printf("Erreur lors de la creation de ./clairs/%s\n", argv[1]);
+						}
+					}
 
-    // obtain file size:
-    fseek (pFile , 0 , SEEK_END);
-    lSize = ftell (pFile);
-    rewind (pFile);
-
-    // allocate memory to contain the whole file:
-    buffer = (char*) malloc (sizeof(char)*lSize);
-    if (buffer == NULL) {fputs ("Memory error",stderr); exit (2);}
-
-    // copy the file into the buffer:
-    result = fread (buffer,1,lSize,pFile);
-    if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
-
-    /* the whole file is now loaded in the memory buffer. */
-
-    // terminate
-    fclose (pFile);
-    //printf("%s", buffer);
-
-
-    //init.i64 = 0b0000000100100011010001010110011110001001101010111100110111101111;
-    //printf("Debut chiffre : %"PRIx64"\n", init.i64);
-    //chiffrement(&init);
-    for(int j = 0; (j*8) < lSize; j++) {
-        bloc64 init;
-        for (int i = 0; i < 8; ++i)
-        {
-            init.i8[7-i] = (uint8_t)buffer[(j*8)+i];
-        }
-        //printf("Debut chiffre : %"PRIx64"\n", init.i64);
-        dechiffrement(&init);
-
-        //char toto = init.i8[0];
-        //printbits_8(init.i8[0]);
-        for (int i = 0; i < 8; ++i)
-        {
-            printf("%c", init.i8[7-i]);
-        }
-    }   
-    free (buffer);
-    //printf("Debut chiffre : %"PRIx64"\n", init.i64);
-    return 0;
+				}
+				else if(keyState == -1){
+					printf("Taille de la cle invalide\n");
+				}
+				else if(keyState == -2){
+					printf("Caracteres non ascii detectes dans la cle\n");
+				}
+			}
+			else{
+				printf("Probleme lors de la verification du fichier\n");	
+			}		
+		}
+		else{
+			printf("Mode d'utilisation du programme incorrecte\n");
+			printf("Mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+		}
+	}
+	else if(argc > 4){	
+		printf("Trops d'arguments donnes, utilisation : des fichier (cle) mode\n");
+		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres\n");
+	       	printf("OPTIONNEL : Avec cle : la cle de cryptage\n");
+		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+		printf("Fermeture du programme\n");
+	}
 }

@@ -1,114 +1,162 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <dirent.h> 
 #include <errno.h> //Used to check states on oppening files
 #include <string.h> //Used to compare/concatenate chars*
 #include <ctype.h> //Used to check for ascii chars
+#include <sys/stat.h>
 
-int main(int argc, char** argv){
-	int structureOk = checkStructure();
-	if(structureOk){
-		printf("Structure du programme fonctionnelle\n");
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include <time.h>
+#include <inttypes.h>
+
+#include "DES.h"
+#include "structure.h"
+
+int decrypt(char* fileName, bloc64* key){
+	int isDecrypted = 1;
+	/*
+	 * -3 : erreur de creation du fichier clair
+	 * -2 : erreur de lecture
+	 * -1 : erreur lors du decryptage
+	 * 1 : fichier decrypter
+	 */
+	char* clair = "./clairs/";
+	char* chiffres = "./chiffres/";
+
+	char* filePath = NULL;	
+	int fileNameLenght = strlen(fileName);
+	filePath = malloc(7+fileNameLenght+1);
+	strcpy(filePath, chiffres);
+	strcat(filePath, fileName);
+
+	FILE* file = fopen(filePath, "r");
+
+	char* decryptedPath = NULL;	
+	decryptedPath = malloc(7+fileNameLenght+1);
+	strcpy(decryptedPath, clair);
+	strcat(decryptedPath, fileName);
+
+	FILE* decrypted = fopen(decryptedPath, "w");
+
+	if(file == NULL){
+		isDecrypted = -1;
 	}
+	else if(decrypted == NULL){
+		isDecrypted = -3;
+	}	
 	else{
-		printf("Probleme lors de la verification de la structure du programme, fermeture\n"); 
-		exit(0);
-	}
-	if(argc <= 1){
-		printf("Pas d'arguments donnes, utilisation : des fichier (cle) mode\n");
-		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres\n");
-	       	printf("OPTIONNEL : Avec cle : la cle de cryptage dans le dossier cles\n");
-		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
-		printf("Fermeture du programme\n");
-	}
-	else if (argc < 3){
-		printf("Pas assez d'arguments donnes, utilisation : des fichier (cle) mode\n");
-		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres, nom de la cle dans le dossier chiffres\n");
-	       	printf("OPTIONNEL : Avec cle : la cle de cryptage\n");
-		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
-		printf("Fermeture du programme\n");
-	}
-	else if(argc == 3){
-		printf("nombre d'arguments correct, cle non specifie\n");
-		int mode = checkMode(argv[2]);
-		if(mode == 1 || mode == 2){
-			int fileState = checkFile(argv[1], mode);
-			if(fileState == 1){
-				int keyFileState = checkKeyFile(argv[1]);
-				if(keyFileState == 1){
-					char* key = malloc(sizeof(char)*8+1);
-					int keyReadState = readKeyFromFile(argv[1], key);
-					if(keyReadState == 1){
-						printf("Cle: %s lue depuis le fichier\n", key);
-						int keyState = checkKey(key);
-						if(keyState == 1){
-							printf("Cle valide\n");
-							if(mode == 1){ //Chiffrement
-								char* repository = "./clairs/";
+		fseek(file, 0, SEEK_END);
 
-							}
-							else if(mode == 2){ //Dechiffrement
+		long int fileSize = ftell(file);
 
-							}
-						}
-						else if(keyState == -1){
-							printf("Taille de la cle invalide\n");
-						}
-						else if(keyState == -2){
-							printf("Caracteres non ascii detectes dans la cle\n");
-						}
-					}
-					else{
-						printf("Erreur lors de la lecture de la cle depuis le fichier\n");
-					}
-				}
-				else{
-					printf("Probleme lors de l'acces au fichier contenant la cle\n");
-				}
+		fseek(file, 0, SEEK_SET);
+
+		long int nb64BitsBlocks = fileSize / 8; //ftell renvoie le nombre D'OCTETS
+
+		long int lastBitsBlock = fileSize % 8; //On recupere le nombre d'octets restants
+		
+		bloc64 currentBlock; 
+		currentBlock.i64 = 0;
+		
+		for(long int i = 0; i < nb64BitsBlocks; i++){
+			fread(&currentBlock.i64, sizeof(uint64_t), 1, file);
+			dechiffrement(&currentBlock, key);
+			fwrite(&currentBlock.i64, sizeof(uint64_t), 1, decrypted);
+		}
+		if(lastBitsBlock > 0){
+			bloc64 lastBlock;
+			lastBlock.i64 = 0;
+			long int nbI8 = 8;
+			for(long int i = 0; i < lastBitsBlock; i++){ //Lecture des derniers octets
+				fread(&lastBlock.i8[i], sizeof(uint8_t), 1, file);
 			}
-			else{
-				printf("Probleme lors de la verification du fichier\n");	
-			}	
-		}
-		else{
-			printf("Mode d'utilisation du programme incorrecte\n");
-			printf("Mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
-		}
-	}
-	else if(argc == 4){
-		printf("nombre d'arguments correct, cle specifie\n");
-		int mode = checkMode(argv[3]);
-		if(mode == 1 || mode == 2){
-			int fileState = checkFile(argv[1], mode);
-			if(fileState == 1){
-				int keyState = checkKey(argv[2]);
-				if(keyState == 1){
-					printf("Cle valide\n");
-				}
-				else if(keyState == -1){
-					printf("Taille de la cle invalide\n");
-				}
-				else if(keyState == -2){
-					printf("Caracteres non ascii detectes dans la cle\n");
-				}
+
+			for(long int i = lastBitsBlock; i < nbI8; i++){ //Completion du bloc64 avec des 0
+				lastBlock.i8[i] = 0;
 			}
-			else{
-				printf("Probleme lors de la verification du fichier\n");	
-			}		
-		}
-		else{
-			printf("Mode d'utilisation du programme incorrecte\n");
-			printf("Mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
+			dechiffrement(&lastBlock, key);
+			
+			fwrite(&lastBlock.i64, sizeof(uint64_t), 1, decrypted);
 		}
 	}
-	else if(argc > 4){	
-		printf("Trops d'arguments donnes, utilisation : des fichier (cle) mode\n");
-		printf("Avec fichier : nom fichier a crypter/decrypter dans le dossier clairs ou chiffres\n");
-	       	printf("OPTIONNEL : Avec cle : la cle de cryptage\n");
-		printf("Avec mode : le mode d'utilisation du programme cf pour crypter, df pour decrypter\n");
-		printf("Fermeture du programme\n");
+	fclose(file);
+	fclose(decrypted);
+	return isDecrypted;	
+}
+int crypt(char* fileName, bloc64* key){
+	int isCrypted = 1;
+	/*
+	 * -3 : erreur de creation du fichier crypte
+	 * -2 : erreur de lecture
+	 * -1 : erreur lors du cryptage
+	 * 1 : fichier crypter
+	 */
+	char* clair = "./clairs/";
+
+	char* filePath = NULL;	
+	int fileNameLenght = strlen(fileName);
+	filePath = malloc(7+fileNameLenght+1);
+	strcpy(filePath, clair);
+	strcat(filePath, fileName);
+
+	FILE* file = fopen(filePath, "r");
+
+	
+	char* chiffres = "./chiffres/";
+
+	char* cryptedPath = NULL;	
+	cryptedPath = malloc(7+fileNameLenght+1);
+	strcpy(cryptedPath, chiffres);
+	strcat(cryptedPath, fileName);
+
+	FILE* crypted = fopen(cryptedPath, "w");
+
+	if(file == NULL){
+		isCrypted = -1;
 	}
+	else if(crypted == NULL){
+		isCrypted = -3;
+	}	
+	else{
+		fseek(file, 0, SEEK_END);
+
+		long int fileSize = ftell(file);
+
+		fseek(file, 0, SEEK_SET);
+
+		long int nb64BitsBlocks = fileSize / 8; //ftell renvoie le nombre D'OCTETS
+
+		long int lastBitsBlock = fileSize % 8; //On recupere le nombre d'octets restants
+		
+		bloc64 currentBlock; 
+		currentBlock.i64 = 0;
+		
+		for(long int i = 0; i < nb64BitsBlocks; i++){
+			fread(&currentBlock.i64, sizeof(uint64_t), 1, file);
+			chiffrement(&currentBlock, key);
+			fwrite(&currentBlock.i64, sizeof(uint64_t), 1, crypted);
+		}
+		if(lastBitsBlock > 0){
+			bloc64 lastBlock;
+			lastBlock.i64 = 0;
+			long int nbI8 = 8;
+			for(long int i = 0; i < lastBitsBlock; i++){ //Lecture des derniers octets
+				fread(&lastBlock.i8[i], sizeof(uint8_t), 1, file);
+			}
+
+			for(long int i = lastBitsBlock; i < nbI8; i++){ //Completion du bloc64 avec des 0
+				lastBlock.i8[i] = 0;
+			}
+			chiffrement(&lastBlock, key);
+			
+			fwrite(&lastBlock.i64, sizeof(uint64_t), 1, crypted);
+		}
+	}
+	fclose(file);
+	fclose(crypted);
+	return isCrypted;	
 }
 
 int checkFileAscii(char* fileName, char* repository){
@@ -118,8 +166,7 @@ int checkFileAscii(char* fileName, char* repository){
 	 * -1 : fichier contenant des caracters non ascii
 	 * 1 : fichier au format ascii ascii
 	 */
-	
-	char* filePath = NULL;
+	char* filePath = NULL;	
 	int fileNameLenght = strlen(fileName);
 	filePath = malloc(7+fileNameLenght+1);
 	strcpy(filePath, repository);
@@ -136,26 +183,29 @@ int checkFileAscii(char* fileName, char* repository){
 
 		fseek(file, 0, SEEK_SET);
 	
-		char localChar = NULL;
+		char* localChar = NULL;
 		localChar = malloc(sizeof(char));
 		
 		for(long int i = 0; i < fileSize; i++){
 			fread(localChar, sizeof(char), sizeof(char), file);
-			if(isascii(localChar) == 0){
+			printf("%c", localChar[0]);
+			if(isascii(localChar[0]) == 0){
 				isAscii = -1;
 			}
 		}
+		printf("\n");
 	}
+	fclose(file);
 	return isAscii;	
 }
-/*
+
 int saveKey(char* fileName, char* key){
 	int keyValue;
 
-	 *
-	 * -1 : erreur de lecture
-	 * 1 : Cle lue
-	 *
+	 /*
+	 * -1 : erreur de sauvegarde
+	 * 1 : Cle sauvee
+	 */
 	
 	char* filePath = NULL;
 	int fileNameLenght = strlen(fileName);
@@ -163,17 +213,18 @@ int saveKey(char* fileName, char* key){
 	strcpy(filePath, "./cles/");
 	strcat(filePath, fileName);
 
-	FILE* file = fopen(filePath, "r");
+	FILE* file = fopen(filePath, "w");
 	if(file == NULL){
 		keyValue = -1;
 	}	
 	else{
+		fwrite(key, sizeof(char), 8, file);
 		keyValue = 1;
 	}
 
 	return keyValue;		
 }
-*/
+
 
 int readKeyFromFile(char* fileName, char* key){
 	int keyValue;
@@ -195,8 +246,6 @@ int readKeyFromFile(char* fileName, char* key){
 	else{
 		fseek(file, 0, SEEK_END);
 
-		long int fileSize = ftell(file);
-
 		fseek(file, 0, SEEK_SET);
 	
 		char* localKey = NULL;
@@ -210,6 +259,7 @@ int readKeyFromFile(char* fileName, char* key){
 
 		keyValue = 1;
 	}
+	fclose(file);
 	return keyValue;	
 }
 
