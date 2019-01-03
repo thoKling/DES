@@ -1,7 +1,7 @@
 #include "DES.h"
 
 #include "MyUtils.h"
-#include "Math.h"
+#include <math.h>
 
 // On inverse Li et Ri a cause de l'architecture little Endian
 const uint8_t Li = 1;
@@ -214,13 +214,11 @@ void selection(uint8_t* v, int uSBOX[4][16]) {
 }
 
 // Version 1
-void chiffrement(bloc64* bloc_init) {
+void chiffrement(bloc64* bloc_init, bloc64* testK) {
   // Permutation initiale
   permutation(64, bloc_init, PI);
   // Generation des clefs
-  bloc64 testK;
-  testK.i64 = 0x0123456789abcdef; 
-  createSubKeys(sKey, testK.i64);
+  createSubKeys(sKey, testK->i64);
   // 16 tours de chiffrements  
   uint32_t temp;
   for(int i = 0; i < 16; i++) {
@@ -241,13 +239,11 @@ void chiffrement(bloc64* bloc_init) {
 }
 
 // Version 1
-void dechiffrement(bloc64* bloc_init) {
+void dechiffrement(bloc64* bloc_init, bloc64* testK) {
   // Permutation initiale
   permutation(64, bloc_init, PI);
   // Generation des clefs
-  bloc64 testK;
-  testK.i64 = 0x0123456789abcdef; 
-  createSubKeys(sKey, testK.i64);
+  createSubKeys(sKey, testK->i64);
   
   uint32_t temp;
   // Echange de Li et Ri
