@@ -65,7 +65,7 @@ int main(int argc, char** argv){
 									else if (isCrypted == -1){
 										printf("Erreur lors du cryptage\n");
 									}
-									else if (isCrypted == -1){
+									else if (isCrypted == -3){
 										printf("Erreur lors de la creation de ./chiffres/%s\n", argv[1]);
 									}
 								}
@@ -88,7 +88,7 @@ int main(int argc, char** argv){
 								else if (isDecrypted == -1){
 									printf("Erreur lors du decryptage\n");
 								}
-								else if (isDecrypted == -1){
+								else if (isDecrypted == -3){
 									printf("Erreur lors de la creation de ./clairs/%s\n", argv[1]);
 								}
 							}
@@ -155,7 +155,7 @@ int main(int argc, char** argv){
 							else if (isCrypted == -1){
 								printf("Erreur lors du cryptage\n");
 							}
-							else if (isCrypted == -1){
+							else if (isCrypted == -3){
 								printf("Erreur lors de la creation de ./chiffres/%s\n", argv[1]);
 							}
 						}
@@ -184,7 +184,7 @@ int main(int argc, char** argv){
 						else if (isDecrypted == -1){
 							printf("Erreur lors du decryptage\n");
 						}
-						else if (isDecrypted == -1){
+						else if (isDecrypted == -3){
 							printf("Erreur lors de la creation de ./clairs/%s\n", argv[1]);
 						}
 					}
