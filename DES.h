@@ -18,7 +18,7 @@ typedef union
 }
 bloc64;
 
-int f(int i);
+uint64_t f_v2(uint32_t R, uint8_t k);
 void chiffrement(bloc64* bloc_init, bloc64* testK);
 void dechiffrement(bloc64* bloc_init, bloc64* testK);
 void permutation(int taille, bloc64* bloc_init, int* perm);

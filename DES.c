@@ -130,11 +130,6 @@ int P[32]={
     2,8,24,14,32,27,3,9,
     19,13,30,6,22,11,4,25};
 
-// Version 1
-int f(int i) {
-  return i*37453123;
-}
-
 bloc64 sKey[16];
 
 // Version 2
@@ -143,32 +138,23 @@ uint64_t f_v2(uint32_t R, uint8_t k) {
     initR.i64 = R;
     //Expansion de R
     permutation(48, &initR, E);
-    //printbits_64(initR.i64);
-
-    //printf("\nK :");
-    //printbits_64(sKey[0].i64);
-    //printf("\n");
-    //printbits_64(sKey[0].i64 ^ initR.i64);
 
     bloc64 temp;
     temp.i64 = sKey[k].i64 ^ initR.i64;
 
+    // On applique les SBOX
     uint8_t select[8];
     uint8_t tempVal = 0;
-    //printf("\n6 bits gang : \n");
     for (int i = 0; i < 48; ++i)
     {
         tempVal |= getbitvalue(temp.i8[5-(i/8)], 7-(i%8)) << (5-(i%6));
         if((i+1) % 6 == 0) {
-            //printf("i : %d", i/6);
             select[i/6] = tempVal;
-            //printf("\n");
             selection(&select[i/6], SBOX[i/6]);
-            //printf("Res:");
-            //printbits_8(select[i/6]);
             tempVal = 0;
         }
     }
+
     bloc64 res;
     res.i64 = 0u;
     // On reassemble les morceaux de 4bits
@@ -177,25 +163,9 @@ uint64_t f_v2(uint32_t R, uint8_t k) {
         res.i8[7-(i)] = select[i*2] << 4;
         res.i8[7-(i)] |= select[(2*i)+1];
     }
-    //printbits_64(res.i64);
     permutationChoice(32, &res, P);
-    //printf("\n");
-    //printbits_32(res.i32[1]);
-  return res.i32[1];
-}
 
-// Application de l'ensemble des SBOX a un bloc de 48bits
-void substitution(bloc64* v) {
-  printbits_64(v->i64);
-  printf("\n");
-  for(int i = 0; i < 8; i++) {
-    bloc64 temp;
-    //temp.i64 = v->i64 >> i*6;
-    temp.i64 = v->i64 << 6*i;
-    printbits_8(temp.i8[5] << 2);
-    printf("\n");
-    //selection(&temp.i8[5] << 2, SBOX[i]); // res ?
-  }
+  return res.i32[1];
 }
 
 // Application d'une SBOX a un ensemble de 6 bits (4bits en retour)
@@ -206,14 +176,11 @@ void selection(uint8_t* v, int uSBOX[4][16]) {
   for(int k = 0; k < 4; k++) {
     j += getbitvalue(*v, 1+k)*pow(2, k);
   }
-  //printf("i : %d j : %d -> %d\n", i, j, uSBOX[i][j]);
   // On retourne la valeur selectionnee
   *v = uSBOX[i][j];
-  //printbits_8(*v);
-  //printf("\n");
 }
 
-// Version 1
+// Fonction de chiffrement d'un bloc
 void chiffrement(bloc64* bloc_init, bloc64* testK) {
   // Permutation initiale
   permutation(64, bloc_init, PI);
@@ -227,7 +194,6 @@ void chiffrement(bloc64* bloc_init, bloc64* testK) {
     // Li+1 = Ri
     bloc_init->i32[Li] = bloc_init->i32[Ri];
     // Ri+1 = Li (+) f(i)
-    printf("I : %"PRIx64"\n", sKey[i].i64);
     bloc_init->i32[Ri] = temp ^ f_v2(bloc_init->i32[Ri], i);
   }
   // On échange
@@ -237,7 +203,6 @@ void chiffrement(bloc64* bloc_init, bloc64* testK) {
   // Permutation inverse
   permutation(64, bloc_init, PI_INV);
 }
-
 // Version 1
 void dechiffrement(bloc64* bloc_init, bloc64* testK) {
   // Permutation initiale
@@ -268,7 +233,6 @@ void permutation(int taille, bloc64* bloc_init, int* perm) {
   bloc64 res;
   res.i64 = 0u;
   for(int i = 0; i < taille; i++) {
-    //printf("Tour %d : valPerm : %d valBit : %d \n", i, perm[i], getbitvalue(bloc_init->i64, perm[i]-1));
     // On cast car getbitvalue() renvoie un uint_8
     // On enleve 1 à la perm car getBit regarde l'index et index commence a 0
     res.i64 |= (long long unsigned int)(getbitvalue(bloc_init->i64, perm[i]-1)) << i; 
@@ -346,9 +310,8 @@ void createSubKeys(bloc64 subKeys[16], uint64_t initKey) {
 
         // On applique PC2
         permutationChoice(48, &K, PC2);
-        //printbits_64(K.i64);
-        //printf("\n");
-        // Maraboutage
+
+        // Maraboutage pour remettre les bits comme on les souhaite en sortie
         subKeys[i].i64 = K.i64 >> 16;
     }
 

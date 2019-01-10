@@ -1,12 +1,21 @@
-int decrypt(char* fileName, bloc64* key);
-int crypt(char* fileName, bloc64* key);
-int checkFileAscii(char* fileName, char* repository);
-int saveKey(char* fileName, char* key);
-int readKeyFromFile(char* fileName, char* key);
-int checkKey(char* key);
-int checkKeyFile(char* fileName);
-int checkMode(char* mode);
-int checkFile(char* fileName, int progMode);
-int isFileInDirectory(char* fileName, char* dirPath);
-int directoryExists(char* directoryName);
-int checkStructure();
+#ifndef structure_h
+#define structure_h
+
+#include "DES.h"
+
+void decrypt(char* fileName, bloc64* key);
+void crypt(char* fileName, bloc64* key);
+void readKeyFromFile(char* fileName, bloc64* key);
+
+void checkKey(char* key);
+void checkKeyFile(char* fileName);
+void convertKeyASCII(char* stringKey, bloc64* key);
+
+void checkFile(char* fileName, int progMode);
+uint8_t checkMode(char* mode);
+uint8_t checkStructure();
+
+int8_t isFileInDirectory(char* fileName, char* dirPath);
+uint8_t directoryExists(char* directoryName);
+
+#endif /* structure_h */

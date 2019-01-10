@@ -8,418 +8,279 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <time.h>
-#include <inttypes.h>
-
 #include "DES.h"
 #include "structure.h"
+#include "MyUtils.h"
 
-int decrypt(char* fileName, bloc64* key){
-	int isDecrypted = 1;
-	/*
-	 * -3 : erreur de creation du fichier clair
-	 * -2 : erreur de lecture
-	 * -1 : erreur lors du decryptage
-	 * 1 : fichier decrypter
-	 */
-	char* clair = "./clairs/";
-	char* chiffres = "./chiffres/";
-
-	char* filePath = NULL;	
-	int fileNameLenght = strlen(fileName);
-	filePath = malloc(7+fileNameLenght+1);
-	strcpy(filePath, chiffres);
+// Fonction principale de décryptage d'un fichier
+void decrypt(char* fileName, bloc64* key){
+	// On créer les chemins vers les fichiers
+	int fileNameLength = strlen(fileName);
+	
+	char* filePath = malloc(7+fileNameLength+1);
+	strcpy(filePath, "./chiffres/");
 	strcat(filePath, fileName);
+	FILE* file = fopen(filePath, "rb");
+	free(filePath);
 
-	FILE* file = fopen(filePath, "r");
-
-	char* decryptedPath = NULL;	
-	decryptedPath = malloc(7+fileNameLenght+1);
-	strcpy(decryptedPath, clair);
+	char* decryptedPath = malloc(7+fileNameLength+1);
+	strcpy(decryptedPath, "./clairs/");
 	strcat(decryptedPath, fileName);
-
-	FILE* decrypted = fopen(decryptedPath, "w");
+	FILE* decrypted = fopen(decryptedPath, "wb");
+	free(decryptedPath);
 
 	if(file == NULL){
-		isDecrypted = -1;
+		printf("Erreur lors de la lecture du fichier : ./chiffres/%s\n", fileName);
+		exit(1);
 	}
 	else if(decrypted == NULL){
-		isDecrypted = -3;
+		printf("Erreur lors de la creation de ./clairs/%s\n", fileName);
+		exit(1);
 	}	
-	else{
-		fseek(file, 0, SEEK_END);
 
-		long int fileSize = ftell(file);
-
-		fseek(file, 0, SEEK_SET);
-
-		long int nb64BitsBlocks = fileSize / 8; //ftell renvoie le nombre D'OCTETS
-
-		long int lastBitsBlock = fileSize % 8; //On recupere le nombre d'octets restants
-		
-		bloc64 currentBlock; 
-		currentBlock.i64 = 0;
-		
-		for(long int i = 0; i < nb64BitsBlocks; i++){
-			fread(&currentBlock.i64, sizeof(uint64_t), 1, file);
-			dechiffrement(&currentBlock, key);
-			fwrite(&currentBlock.i64, sizeof(uint64_t), 1, decrypted);
+	// On décrypte
+	fseek(file, 0, SEEK_END);
+	long int fileSize = ftell(file);
+	fseek(file, 0, SEEK_SET);
+	
+	bloc64 currentBlock; 
+	currentBlock.i64 = 0u;
+	for(int i = 0; i*8 < fileSize; i++) {
+		// On inverse pcq dans l'algo les i8 sont inversés
+		for(uint8_t j = 0; j < 8; ++j) {
+			fread(&currentBlock.i8[7-j], sizeof(char), 1, file);
 		}
-		if(lastBitsBlock > 0){
-			bloc64 lastBlock;
-			lastBlock.i64 = 0;
-			long int nbI8 = 8;
-			for(long int i = 0; i < lastBitsBlock; i++){ //Lecture des derniers octets
-				fread(&lastBlock.i8[i], sizeof(uint8_t), 1, file);
-			}
-
-			for(long int i = lastBitsBlock; i < nbI8; i++){ //Completion du bloc64 avec des 0
-				lastBlock.i8[i] = 0;
-			}
-			dechiffrement(&lastBlock, key);
-			
-			fwrite(&lastBlock.i64, sizeof(uint64_t), 1, decrypted);
-		}
+		dechiffrement(&currentBlock, key);
+		// On re-inverse pour écrire correctement dans le fichier
+        for (uint8_t j = 0; j < 8; ++j)
+        {
+            printf("%c", currentBlock.i8[7-j]);
+            fwrite(&currentBlock.i8[7-j], sizeof(char), 1, decrypted);
+        }
 	}
+	// On print un : pour voir les espace à la fin 
+	printf(":\n");
+
 	fclose(file);
 	fclose(decrypted);
-	return isDecrypted;	
 }
-int crypt(char* fileName, bloc64* key){
-	int isCrypted = 1;
-	/*
-	 * -3 : erreur de creation du fichier crypte
-	 * -2 : erreur de lecture
-	 * -1 : erreur lors du cryptage
-	 * 1 : fichier crypter
-	 */
-	char* clair = "./clairs/";
+// Fonction principale de décryptage
+void crypt(char* fileName, bloc64* key){
+	// On créer les chemins vers les fichiers
+	int fileNameLength = strlen(fileName);
 
-	char* filePath = NULL;	
-	int fileNameLenght = strlen(fileName);
-	filePath = malloc(7+fileNameLenght+1);
-	strcpy(filePath, clair);
+	char* filePath = malloc(7+fileNameLength+1);
+	strcpy(filePath, "./clairs/");
 	strcat(filePath, fileName);
+	FILE* file = fopen(filePath, "rb");
+	free(filePath);
 
-	FILE* file = fopen(filePath, "r");
-
-	
-	char* chiffres = "./chiffres/";
-
-	char* cryptedPath = NULL;	
-	cryptedPath = malloc(7+fileNameLenght+1);
-	strcpy(cryptedPath, chiffres);
+	char* cryptedPath = malloc(7+fileNameLength+1);
+	strcpy(cryptedPath, "./chiffres/");
 	strcat(cryptedPath, fileName);
-
-	FILE* crypted = fopen(cryptedPath, "w");
+	FILE* crypted = fopen(cryptedPath, "wb");
+	free(cryptedPath);
 
 	if(file == NULL){
-		isCrypted = -1;
+		printf("Erreur lors de la lecture du fichier : ./clairs/%s\n", fileName);
+		exit(1);
 	}
 	else if(crypted == NULL){
-		isCrypted = -3;
+		printf("Erreur lors de la creation du fichier crypté");
+		exit(1);
 	}	
-	else{
-		fseek(file, 0, SEEK_END);
 
-		long int fileSize = ftell(file);
+	// On crypte
+	fseek(file, 0, SEEK_END);
+	long int fileSize = ftell(file);
+	fseek(file, 0, SEEK_SET);
 
-		fseek(file, 0, SEEK_SET);
-
-		long int nb64BitsBlocks = fileSize / 8; //ftell renvoie le nombre D'OCTETS
-
-		long int lastBitsBlock = fileSize % 8; //On recupere le nombre d'octets restants
-		
-		bloc64 currentBlock; 
-		currentBlock.i64 = 0;
-		
-		for(long int i = 0; i < nb64BitsBlocks; i++){
-			fread(&currentBlock.i64, sizeof(uint64_t), 1, file);
-			chiffrement(&currentBlock, key);
-			fwrite(&currentBlock.i64, sizeof(uint64_t), 1, crypted);
+	bloc64 currentBlock; 
+	currentBlock.i64 = 0;
+	for(long int i = 0; i < fileSize / 8; i++) {
+		for(uint8_t j = 0; j < 8; ++j) {
+			fread(&currentBlock.i8[7-j], sizeof(char), 1, file);
 		}
-		if(lastBitsBlock > 0){
-			bloc64 lastBlock;
-			lastBlock.i64 = 0;
-			long int nbI8 = 8;
-			for(long int i = 0; i < lastBitsBlock; i++){ //Lecture des derniers octets
-				fread(&lastBlock.i8[i], sizeof(uint8_t), 1, file);
-			}
-
-			for(long int i = lastBitsBlock; i < nbI8; i++){ //Completion du bloc64 avec des 0
-				lastBlock.i8[i] = 0;
-			}
-			chiffrement(&lastBlock, key);
-			
-			fwrite(&lastBlock.i64, sizeof(uint64_t), 1, crypted);
-		}
+		chiffrement(&currentBlock, key);
+        for (uint8_t j = 0; j < 8; ++j)
+        {
+            fwrite(&currentBlock.i8[7-j], sizeof(char), 1, crypted);
+        }
 	}
+	// On gère le dernier bloc si il est incomplet
+	long int lastBitsBlock = fileSize % 8; //On recupere le nombre d'octets restants
+	if(lastBitsBlock > 0){
+		bloc64 lastBlock;
+		lastBlock.i64 = 0;
+		for(uint8_t i = 0; i < 8; i++){ //Lecture des derniers octets
+			if(i < lastBitsBlock)
+				fread(&lastBlock.i8[7-i], sizeof(uint8_t), 1, file);
+			else
+				lastBlock.i8[7-i] = 0;
+		}
+		chiffrement(&lastBlock, key);
+		
+		fwrite(&lastBlock.i64, sizeof(uint64_t), 1, crypted);
+	}
+
 	fclose(file);
 	fclose(crypted);
-	return isCrypted;	
 }
 
-int checkFileAscii(char* fileName, char* repository){
-	int isAscii = 1;
-	/*
-	 * -2 : erreur de lecture
-	 * -1 : fichier contenant des caracters non ascii
-	 * 1 : fichier au format ascii ascii
-	 */
-	char* filePath = NULL;	
-	int fileNameLenght = strlen(fileName);
-	filePath = malloc(7+fileNameLenght+1);
-	strcpy(filePath, repository);
-	strcat(filePath, fileName);
+// Lit la clef depuis un fichier
+void readKeyFromFile(char* fileName, bloc64* key){
+	// On vérifie le fichier
+	checkKeyFile(fileName);
 
-	FILE* file = fopen(filePath, "r");
-	if(file == NULL){
-		isAscii = -1;
-	}	
-	else{
-		fseek(file, 0, SEEK_END);
-
-		long int fileSize = ftell(file);
-
-		fseek(file, 0, SEEK_SET);
-	
-		char* localChar = NULL;
-		localChar = malloc(sizeof(char));
-		
-		for(long int i = 0; i < fileSize; i++){
-			fread(localChar, sizeof(char), sizeof(char), file);
-			printf("%c", localChar[0]);
-			if(isascii(localChar[0]) == 0){
-				isAscii = -1;
-			}
-		}
-		printf("\n");
-	}
-	fclose(file);
-	return isAscii;	
-}
-
-int saveKey(char* fileName, char* key){
-	int keyValue;
-
-	 /*
-	 * -1 : erreur de sauvegarde
-	 * 1 : Cle sauvee
-	 */
-	
-	char* filePath = NULL;
-	int fileNameLenght = strlen(fileName);
-	filePath = malloc(7+fileNameLenght+1);
-	strcpy(filePath, "./cles/");
-	strcat(filePath, fileName);
-
-	FILE* file = fopen(filePath, "w");
-	if(file == NULL){
-		keyValue = -1;
-	}	
-	else{
-		fwrite(key, sizeof(char), 8, file);
-		keyValue = 1;
-	}
-
-	return keyValue;		
-}
-
-
-int readKeyFromFile(char* fileName, char* key){
-	int keyValue;
-	/*
-	 * -1 : erreur de lecture
-	 * 1 : Cle lue 
-	 */
-	
-	char* filePath = NULL;
-	int fileNameLenght = strlen(fileName);
-	filePath = malloc(7+fileNameLenght+1);
+	// On construit le chemin vers le fichier
+	int fileNameLength = strlen(fileName);
+	char* filePath = malloc((7+fileNameLength+1)*sizeof(char));
 	strcpy(filePath, "./cles/");
 	strcat(filePath, fileName);
 
 	FILE* file = fopen(filePath, "r");
 	if(file == NULL){
-		keyValue = -1;
+		printf("Erreur lors de la lecture de la cle depuis le fichier\n");
+		exit(1);
 	}	
-	else{
-		fseek(file, 0, SEEK_END);
 
-		fseek(file, 0, SEEK_SET);
-	
-		char* localKey = NULL;
-		localKey = malloc(8+1);
-
-		fread(localKey, sizeof(char), sizeof(char)*8, file);
-		printf("Cle : %s\n", localKey);
-
-		memcpy(key, &localKey[0], 8);
-		key[8] = '\0';
-
-		keyValue = 1;
+	// On lit la clef
+	char* stringKey = calloc(17, sizeof(char));
+	for (int i = 0; i < 16; ++i)
+	{
+		fread(&stringKey[i], sizeof(char), 1, file);
 	}
 	fclose(file);
-	return keyValue;	
+	stringKey[17] = '\0';
+
+	printf("Cle: %s lue depuis le fichier\n", stringKey);
+
+	// On verifie la clef
+	checkKey(stringKey);
+
+	// Conversion de la clef en nombre
+	convertKeyASCII(stringKey, key);
 }
 
-int checkKey(char* key){
-	int keyValue;
-	/* 
-	 * -2 : Cle invalide (Caracteres non ascii)
-	 * -1 : Cle invalide (taille)
-	 * 1 : Cle valide
-	 */
-	size_t keySize = strlen(key);
-	if(keySize == 8){
-		for(size_t i = 0; i < keySize; i += sizeof(char)){
-			if(isascii(key[i]) == 0){
-				keyValue = -2;
-			}
-		}
-		if(keyValue != -2){
-			keyValue = 1;
-		}
+// Conversion de la clef (ASCII) en nombre
+void convertKeyASCII(char* stringKey, bloc64* key) {
+	char* temp = calloc(3, sizeof(char));
+	for (int i = 0; i < 8; ++i)
+	{
+		memcpy(temp, &stringKey[i*2], 2);
+		key->i8[7-i] = strtol(temp, NULL, 16);
 	}
-	else{
-		keyValue = -1;
-		printf("La cle doit etre sur 8 caracteres ascii, taille actuelle : %zd\n", keySize);
-	}
-	return keyValue;
 }
 
-int checkKeyFile(char* fileName){
-	int state = 0;
-	/*
-	 * 1 : cle accessible 
-	 * -1 : N'importe quel autre cas 
-	 */
-	char* dirCles = "cles/";
+// On verifie que la clef fait bien la bonne taille
+void checkKey(char* key){
+	if(strlen(key) != 16) {
+		printf("La cle doit etre sur 16 caracteres ascii, taille actuelle : %d\n", strlen(key));
+		exit(1);
+	}
+}
 
-	int keyInCles = isFileInDirectory(fileName, dirCles);
-
-	if(keyInCles == -1){ //cle inaccessible(droits)
-		state = -1;
-		printf("La cle est inaccessible dans le dossier cles(verifier les droits)\n");
+// Verifie le fichier contenant la clef
+void checkKeyFile(char* fileName){
+	switch(isFileInDirectory(fileName, "cles/")) {
+		case 1:
+			printf("La cle est accessible dans le dossier cles\n");
+			break;
+		case -1:
+			printf("La cle est inaccessible dans le dossier cles (verifier les droits)\n");
+			exit(1);
+			break;
+		case -2:
+			printf("La cle est inaccessible dans le dossier cles\n");
+			exit(1);
+			break;
+		case -3:
+			printf("La cle est introuvable dans le dossier cles\n");
+			exit(1);
+			break;
 	}
-	else if(keyInCles == -2){ //Cle inaccessible(autre)
-		state = -1;
-		printf("La cle est inaccessible dans le dossier cles\n");
-	}
-	else if(keyInCles == -3){ //Cle introuvable
-		state = -1;
-		printf("La cle est introuvable dans le dossier cles\n");
-	}
-	else if(keyInCles == 1){ //Cle accessible
-		state = 1;
-		printf("La cle est accessible dans le dossier cles\n");
-	}
-	return state;
 }	
 
-int checkMode(char* mode){
-	int modeValue;
-	/*
-	 * -1 : ne correspond pas a un mode
-	 * 1 : cryptage 
-	 * 2 : decryptage
-	 */
+// Vérifie et renvoit le mode séléctionné
+uint8_t checkMode(char* mode){
 	if(strncmp("cf", mode, sizeof("cf")) == 0){
-		modeValue = 1; 
 		printf("Mode defini pour le cryptage\n");
+		return 1;
 	}
 	else if(strncmp("df", mode, sizeof("df")) == 0){
-		modeValue = 2;
 		printf("Mode defini pour le decryptage\n");
+		return 2;
 	}
-	else{
-		modeValue = -1;
-		printf("Mode inconnu, impossible de continuer\n");
-	}
-	return modeValue;
+	printf("Mode inconnu, impossible de continuer\n");
+	exit(1);
 }
 
-int checkFile(char* fileName, int progMode){
-	int state = 0;
-	/*
-	 * 1 : fichier dans le bon dossier avec le bon mode
-	 * -1 : N'importe quel autre cas 
-	 */
-	char* dirClairs = "clairs/";
-	char* dirChiffres = "chiffres/\0";
-
-	int fileInClairs = isFileInDirectory(fileName, dirClairs);
-	int fileInChiffres = isFileInDirectory(fileName, dirChiffres);
+// Verifie la presence et l'accessibilite du fichier dans les dossiers
+void checkFile(char* fileName, int progMode){
+	int fileInClairs = isFileInDirectory(fileName, "clairs/");
+	int fileInChiffres = isFileInDirectory(fileName, "chiffres/\0");
 
 	if(fileInClairs == -1 || fileInChiffres == -1){ //Fichiers inaccessibles(droits)
-		state = -1;
 		printf("%s est inaccessible dans les dossiers clairs et chiffres(verifier les droits)\n", fileName);
+		exit(1);
 	}
 	else if(fileInClairs == -2 || fileInChiffres == -2){ //Fichiers inaccessibles(autre)
-		state = -1;
 		printf("%s est inaccessible dans les dossiers clairs et chiffres\n", fileName);
+		exit(1);
 	}
 	else if(fileInClairs == -3 && fileInChiffres == -3){ //Fichiers introuvables
-		state = -1;
 		printf("%s est introuvable dans les dossiers clairs et chiffres\n", fileName);
+		exit(1);
 	}
 	else if(fileInClairs == -3 && fileInChiffres == -1){ //Fichier existe dans mauvais dossier et inaccessibles(droits)
-		state = -1;
 		printf("%s trouve dans le mauvais dossier et est inaccessible(verifier les droits)\n", fileName);
+		exit(1);
 	}
 	else if(fileInClairs == -3 && fileInChiffres == -2){ //Fichier existe dans mauvais dossier et inaccessibles(autres)
-		state = -1;
 		printf("%s trouve dans le mauvais dossier et est inaccessible\n", fileName);
+		exit(1);
 	}
 
 	if(progMode == 1){ //Cryptage
 		if(fileInClairs == 1 && fileInChiffres == -3){ //Fichier dans le bon dossier et inexistant dans les autres dossiers
-			state = 1;
 			printf("%s trouve dans le bon dossier et accessible pour le cryptage\n", fileName);
 		}
 		else if(fileInClairs == -3 && fileInChiffres == 1){ //Fichier dans le mauvais dossier et inexistant dans les autres
-			state = -1;
 			printf("%s trouve dans chiffres, pour le cryptage le fichier doit etre dans clairs\n", fileName);
+			exit(1);
 		}
 		else if(fileInClairs == 1 && fileInChiffres == 1){ //Fichier present dans les deux dossiers 
-			state = -1;
-		printf("%s trouve dans le mauvais dossier et est inaccessible(verifier les droits)\n", fileName);
+			printf("%s trouve dans le mauvais dossier et est inaccessible(verifier les droits)\n", fileName);
+			exit(1);
 		}
 	}
 	else if(progMode == 2){ //Decryptage
 		if(fileInClairs == 1 && fileInChiffres == -3){ //Fichier dans le mauvais dossier et inexistant dans les autres dossiers
-			state = -1;
 			printf("%s trouve dans clairs, pour le decryptage le fichier doit etre dans chiffres\n", fileName);
+			exit(1);
 		}
 		else if(fileInClairs == -3 && fileInChiffres == 1){ //Fichier dans le bon dossier et inexistant dans les autres
-			state = 1;
 			printf("%s trouve dans le bon dossier et accessible pour le decryptage\n", fileName);
 		}
 		else if(fileInClairs == 1 && fileInChiffres == 1){ //Fichier present dans les deux dossiers 
-			state = -1;
 			printf("%s trouve dans les deux dossier, le fichier a-t-il deja ete crypter? Deplacer le fichier du dossier chiffres\n", fileName);
+			exit(1);
 		}
 	}
-	return state;
 }	
 
-int isFileInDirectory(char* fileName, char* dirPath){
-	int fileState = 0;
-	/*
-	 * 1 : Fichier trouve 
-	 * -1 : Fichier existe mais erreur de droits
-	 * -2 : Erreur autre
-	 * -3 : fichier inexistant
-	 */
+// Verifie si le fichier est dans le dossier
+int8_t isFileInDirectory(char* fileName, char* dirPath){
+	// On renvoit 1 si tout va bien sinon erreur
+	uint8_t fileState = 0;
 
-	char* filePath = NULL;
-	int fileNameLenght = strlen(fileName);
-	int dirPathLenght = strlen(dirPath);
-	filePath = malloc(2+dirPathLenght+fileNameLenght+1);
+	// On créer le chemin vers le fichier
+	char* filePath = malloc(2 + strlen(dirPath) + strlen(fileName) + 1);
 	strcpy(filePath, "./");
 	strcat(filePath, dirPath);
 	strcat(filePath, fileName);
 
+	// On ouvre le fichier et on voit
 	FILE* file = fopen(filePath, "r");
 	if(file){	//fichier existe
 		fileState = 1;
@@ -444,64 +305,31 @@ int isFileInDirectory(char* fileName, char* dirPath){
 }
 
 
-
-int directoryExists(char* directoryName){
-	int dirState;
-	/*
-	 * 0 : Dossier existe et est accessible
-	 * -1 : Erreur de droits
-	 * -2 : Erreur autre
-	 */
-
-	char* directoryPath = NULL;
+// Verifie que le dossier existe
+uint8_t directoryExists(char* directoryName){
+	// On créer le chemin vers le dossier
 	int directoryNameLenght = strlen(directoryName);
-	directoryPath = malloc(2+directoryNameLenght+1);
+	char* directoryPath = malloc(2+directoryNameLenght+1);
 	strcpy(directoryPath, "./");
 	strcat(directoryPath, directoryName);
 
-	DIR* dir = opendir(directoryPath);
-	if(dir){	//dossier existe
-		dirState = 0;
+	// On essaye de l'ouvrir
+	DIR* dir = opendir(directoryPath);	
+
+	if(dir) {	//dossier existe
 		printf("%s existe et est accessible\n", directoryPath);	
 		closedir(dir);
+		free(directoryPath);
+		return 1;
 	}
-	else if (ENOENT == errno){	//dossier n'existe pas
-		mkdir(directoryPath, 0700);
-		printf("%s n'existe pas et a ete cree\n", directoryPath);
-		dirState = directoryExists(directoryName);
-	}
-	else if(EACCES == errno){	//problèmes de droits
-		dirState = -1;
-		printf("%s existe mais n'est pas accessible (verifier les droits)\n", directoryPath);
-	}
-	else{	//Erreur d'ouverture pour raison X
-		dirState = -2;
+	else {	//Erreur d'ouverture pour raison X
 		printf("%s est inaccessible\n", directoryPath);
+		free(directoryPath);
+		return 0;
 	}
-	free(directoryPath);
-	return dirState;
 }
 
-int checkStructure(){
-	int dirResult[3];
-	int returnValue = 1;
-	/*
-	 * 1 : Structure ok 
-	 * -1 : Probleme dans la structure
-	 */
-
-	char dirClairs[7] = "clairs\0";
-	char dirChiffres[9] = "chiffres\0";
-	char dirCles[5] = "cles\0";
-	
-	dirResult[0] = directoryExists(dirClairs);
-	dirResult[1] = directoryExists(dirChiffres);
-	dirResult[2] = directoryExists(dirCles);
-
-	for(int i = 0; i < 3; i++){
-		if(dirResult[i] != 0){
-			returnValue = -1;
-		}
-	}
-	return returnValue;
+// Verifie la structure des dossiers 
+uint8_t checkStructure() {
+	return directoryExists("clairs\0") && directoryExists("chiffres\0") && directoryExists("cles\0");
 }
